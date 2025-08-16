@@ -17,17 +17,8 @@ CSV_PATH = 'destinos.csv'
 try:
     pdfmetrics.registerFont(TTFont('Arial', 'arial.ttf'))
     pdfmetrics.registerFont(TTFont('Arial-Bold', 'arialbd.ttf'))
-    print("---------------------------------------------------------------")
-    print("--- SUCESSO: Fontes Arial e Arial-Bold carregadas com êxito! ---")
-    print("---------------------------------------------------------------")
 except Exception as e:
-    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print("!!! ERRO CRÍTICO: Não foi possível carregar os arquivos de fonte !!!")
-    print("!!! Verifique se 'arial.ttf' e 'arialbd.ttf' estão na pasta   !!!")
-    print("!!! do projeto e com os nomes corretos.                       !!!")
-    print(f"!!! Detalhe do erro do sistema: {e}")
-    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
+    print(f"AVISO: Não foi possível carregar fontes: {e}")
 
 # --- FUNÇÕES DE MANIPULAÇÃO DE DADOS ---
 def carregar_dataframe():
@@ -46,28 +37,26 @@ def index():
     df = df.dropna(subset=['sigla'])
     destinos_dict = df.set_index('sigla').to_dict('index')
 
+    # --- INÍCIO DO CÓDIGO DE DEPURAÇÃO ---
+    print("--- INICIANDO DEPURAÇÃO DE DADOS ---")
+    print(f"Total de destinos carregados: {len(destinos_dict)}")
+    print("Chaves (siglas) encontradas no dicionário:")
+    print(list(destinos_dict.keys()))
+    print("--- FIM DA DEPURAÇÃO DE DADOS ---")
+    # --- FIM DO CÓDIGO DE DEPURAÇÃO ---
+
     if request.method == 'POST':
         sigla = request.form.get('sigla').upper()
         quantidade = int(request.form.get('quantidade'))
         dados_recebedor = destinos_dict[sigla]
-        
+
         buffer = io.BytesIO()
         c = canvas.Canvas(buffer, pagesize=(150 * mm, 100 * mm))
         styles = getSampleStyleSheet()
-
-        style_normal = ParagraphStyle(
-            name='Normal',
-            parent=styles['Normal'],
-            fontName='Arial',
-            fontSize=11,
-            leading=13,
-            alignment=TA_LEFT,
-        )
-
+        style_normal = ParagraphStyle(name='Normal', parent=styles['Normal'], fontName='Arial', fontSize=11, leading=13, alignment=TA_LEFT)
         for i in range(1, quantidade + 1):
             margem_h = 5 * mm
             largura_maxima = 140 * mm
-            
             c.setFont('Arial-Bold', 56)
             c.drawString(margem_h, 75 * mm, sigla)
             numero_str = f"#{i}"
@@ -76,19 +65,14 @@ def index():
             c.drawString((150 * mm) - margem_h - largura_texto_num, 75 * mm, numero_str)
             c.setFont('Arial-Bold', 46)
             c.drawString(margem_h, 55 * mm, "Overpack used")
-            
-            # MUDANÇA FINAL: Usando a tag <font> para forçar o uso da fonte em negrito.
-            expedidor_text = "<font name='Arial-Bold'>EXPEDIDOR:</font> NEW POST LOGISTICA ENDEREÇO: R UBALDO FAGGEANI, 355,0 - JARDIM RESIDENCIAL LAS PALMAS MUNICÍPIO: PORTO FERREIRA - SP CEP: 13660-000 CNPJ/CPF: 28.678.104/0001-79 IE: 555074223110 UF: SP PAÍS: BRASIL"
-            recebedor_text = f"<font name='Arial-Bold'>RECEBEDOR:</font> {dados_recebedor['nome_recebedor']} CNPJ {dados_recebedor['cnpj_recebedor']} ENDEREÇO: {dados_recebedor['endereco_recebedor']}, {dados_recebedor['cidade_recebedor']} - {dados_recebedor['uf_recebedor']} CEP: {dados_recebedor['cep_recebedor']}"
-
+            expedidor_text = "<b>EXPEDIDOR:</b> NEW POST LOGISTICA ENDEREÇO: R UBALDO FAGGEANI, 355,0 - JARDIM RESIDENCIAL LAS PALMAS MUNICÍPIO: PORTO FERREIRA - SP CEP: 13660-000 CNPJ/CPF: 28.678.104/0001-79 IE: 555074223110 UF: SP PAÍS: BRASIL"
+            recebedor_text = f"<b>RECEBEDOR:</b> {dados_recebedor['nome_recebedor']} CNPJ {dados_recebedor['cnpj_recebedor']} ENDEREÇO: {dados_recebedor['endereco_recebedor']}, {dados_recebedor['cidade_recebedor']} - {dados_recebedor['uf_recebedor']} CEP: {dados_recebedor['cep_recebedor']}"
             p_expedidor = Paragraph(expedidor_text, style_normal)
             p_expedidor.wrapOn(c, largura_maxima, 40 * mm)
             p_expedidor.drawOn(c, margem_h, 28 * mm)
-
             p_recebedor = Paragraph(recebedor_text, style_normal)
             p_recebedor.wrapOn(c, largura_maxima, 20 * mm)
             p_recebedor.drawOn(c, margem_h, 5 * mm)
-            
             c.showPage()
         c.save()
         buffer.seek(0)
@@ -96,7 +80,7 @@ def index():
 
     return render_template('index.html', destinos=destinos_dict.keys())
 
-# --- ROTAS DE ADMINISTRAÇÃO ---
+# (O restante do código para /admin, /add, /delete continua o mesmo)
 @app.route('/admin')
 def admin():
     df = carregar_dataframe()
