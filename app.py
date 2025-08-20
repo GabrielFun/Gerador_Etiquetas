@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from flask import Flask, render_template, request, send_file, redirect, url_for
+from flask import Flask, render_template, request, send_file
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
@@ -17,43 +17,45 @@ CSV_PATH = 'destinos.csv'
 try:
     pdfmetrics.registerFont(TTFont('Arial', 'arial.ttf'))
     pdfmetrics.registerFont(TTFont('Arial-Bold', 'arialbd.ttf'))
+    print("--- SUCESSO: Fontes carregadas ---")
 except Exception as e:
-    print(f"AVISO: Não foi possível carregar fontes: {e}")
+    print(f"!!! ERRO CRÍTICO: Não foi possível carregar fontes: {e} !!!")
 
-# --- FUNÇÕES DE MANIPULAÇÃO DE DADOS ---
+# --- FUNÇÃO PARA CARREGAR DADOS ---
 def carregar_dataframe():
     if not os.path.exists(CSV_PATH):
-        colunas = ['sigla', 'nome_recebedor', 'cnpj_recebedor', 'endereco_recebedor', 'cidade_recebedor', 'uf_recebedor', 'cep_recebedor', 'pais_recebedor']
-        return pd.DataFrame(columns=colunas)
+        print(f"!!! ERRO CRÍTICO: Arquivo '{CSV_PATH}' não encontrado. !!!")
+        return pd.DataFrame() # Retorna um DataFrame vazio
     return pd.read_csv(CSV_PATH)
-
-def salvar_dataframe(df):
-    df.to_csv(CSV_PATH, index=False)
 
 # --- ROTA PRINCIPAL (GERAR ETIQUETAS) ---
 @app.route('/', methods=['GET', 'POST'])
 def index():
     df = carregar_dataframe()
-    df = df.dropna(subset=['sigla'])
-    destinos_dict = df.set_index('sigla').to_dict('index')
-
-    # --- INÍCIO DO CÓDIGO DE DEPURAÇÃO ---
-    print("--- INICIANDO DEPURAÇÃO DE DADOS ---")
-    print(f"Total de destinos carregados: {len(destinos_dict)}")
-    print("Chaves (siglas) encontradas no dicionário:")
-    print(list(destinos_dict.keys()))
-    print("--- FIM DA DEPURAÇÃO DE DADOS ---")
-    # --- FIM DO CÓDIGO DE DEPURAÇÃO ---
+    # Verifica se o DataFrame não está vazio e tem a coluna 'sigla'
+    if not df.empty and 'sigla' in df.columns:
+        df = df.dropna(subset=['sigla'])
+        destinos_dict = df.set_index('sigla').to_dict('index')
+    else:
+        destinos_dict = {}
 
     if request.method == 'POST':
+        if not destinos_dict:
+            return "Erro: A base de dados de destinos está vazia ou não pôde ser carregada."
+
         sigla = request.form.get('sigla').upper()
         quantidade = int(request.form.get('quantidade'))
-        dados_recebedor = destinos_dict[sigla]
+        
+        if sigla not in destinos_dict:
+            return f"Erro: Sigla '{sigla}' não encontrada na base de dados."
 
+        dados_recebedor = destinos_dict[sigla]
+        
         buffer = io.BytesIO()
         c = canvas.Canvas(buffer, pagesize=(150 * mm, 100 * mm))
         styles = getSampleStyleSheet()
         style_normal = ParagraphStyle(name='Normal', parent=styles['Normal'], fontName='Arial', fontSize=11, leading=13, alignment=TA_LEFT)
+        
         for i in range(1, quantidade + 1):
             margem_h = 5 * mm
             largura_maxima = 140 * mm
@@ -74,36 +76,12 @@ def index():
             p_recebedor.wrapOn(c, largura_maxima, 20 * mm)
             p_recebedor.drawOn(c, margem_h, 5 * mm)
             c.showPage()
+        
         c.save()
         buffer.seek(0)
         return send_file(buffer, as_attachment=True, download_name=f'etiquetas_{sigla}.pdf', mimetype='application/pdf')
 
     return render_template('index.html', destinos=destinos_dict.keys())
-
-# (O restante do código para /admin, /add, /delete continua o mesmo)
-@app.route('/admin')
-def admin():
-    df = carregar_dataframe()
-    df = df.dropna(subset=['sigla'])
-    destinos_dict = df.set_index('sigla').to_dict('index')
-    return render_template('admin.html', destinos=destinos_dict)
-
-@app.route('/add', methods=['GET', 'POST'])
-def add_destino():
-    if request.method == 'POST':
-        df = carregar_dataframe()
-        nova_linha = pd.DataFrame([request.form.to_dict()]).fillna('')
-        df = pd.concat([df, nova_linha], ignore_index=True)
-        salvar_dataframe(df)
-        return redirect(url_for('admin'))
-    return render_template('destino_form.html')
-
-@app.route('/delete/<sigla>')
-def delete_destino(sigla):
-    df = carregar_dataframe()
-    df = df[df.sigla != sigla.upper()]
-    salvar_dataframe(df)
-    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
