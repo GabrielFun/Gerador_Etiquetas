@@ -58,7 +58,7 @@ def index():
             largura_maxima = 92 * mm 
 
             # Coordenadas e fontes ajustadas para o layout 100x100
-            c.setFont('Arial-Bold', 34)
+            c.setFont('Arial-Bold', 32)
             c.drawString(margem_h, 82 * mm, sigla)
 
             numero_str = f"#{i}"
