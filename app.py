@@ -62,7 +62,7 @@ def index():
             c.drawString(margem_h, 82 * mm, sigla)
 
             numero_str = f"#{i}"
-            c.setFont('Arial-Bold', 34)
+            c.setFont('Arial-Bold', 32)
             largura_texto_num = c.stringWidth(numero_str, 'Arial-Bold', 34)
             c.drawString((100 * mm) - margem_h - largura_texto_num, 82 * mm, numero_str)
 
