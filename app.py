@@ -26,26 +26,51 @@ def carregar_dataframe():
     if not os.path.exists(CSV_PATH):
         colunas = ['sigla', 'nome_recebedor', 'cnpj_recebedor', 'endereco_recebedor', 'cidade_recebedor', 'uf_recebedor', 'cep_recebedor', 'pais_recebedor']
         return pd.DataFrame(columns=colunas)
-    return pd.read_csv(CSV_PATH)
+    
+    # CORREÇÃO 1: Adicionado encoding='utf-8-sig' para ignorar o BOM invisível do Excel/Windows
+    return pd.read_csv(CSV_PATH, encoding='utf-8-sig')
 
 def salvar_dataframe(df):
-    df.to_csv(CSV_PATH, index=False)
+    df.to_csv(CSV_PATH, index=False, encoding='utf-8-sig')
 
 # --- ROTA PRINCIPAL (GERAR ETIQUETAS) ---
 @app.route('/', methods=['GET', 'POST'])
 def index():
     df = carregar_dataframe()
+    
+    # CORREÇÃO 2: Limpar os nomes das colunas de possíveis espaços invisíveis
+    df.columns = df.columns.str.strip() 
+
     if not df.empty and 'sigla' in df.columns:
         df = df.dropna(subset=['sigla'])
+        # CORREÇÃO 3: Padronizar a sigla, removendo espaços em branco nas pontas e forçando maiúscula
+        df['sigla'] = df['sigla'].astype(str).str.strip().str.upper()
         destinos_dict = df.set_index('sigla').to_dict('index')
     else:
         destinos_dict = {}
 
     if request.method == 'POST':
-        sigla = request.form.get('sigla').upper()
-        quantidade = int(request.form.get('quantidade'))
+        sigla_recebida = request.form.get('sigla')
+        quantidade_str = request.form.get('quantidade')
+
+        # Proteção extra: se enviar vazio, não quebra o servidor
+        if not sigla_recebida or not quantidade_str:
+            return "Erro: Sigla ou quantidade não foram informados.", 400
+
+        sigla = sigla_recebida.strip().upper()
+        
+        try:
+            quantidade = int(quantidade_str)
+        except ValueError:
+            return "Erro: Quantidade inválida.", 400
+
+        # Proteção extra: se a sigla não existir no CSV, mostra erro amigável ao invés do Erro 500
+        if sigla not in destinos_dict:
+            return f"Erro: A sigla '{sigla}' não foi encontrada no banco de dados.", 404
+
         dados_recebedor = destinos_dict[sigla]
 
+        # ... (DAQUI PARA BAIXO O SEU CÓDIGO DE GERAR O PDF CONTINUA EXATAMENTE IGUAL)
         buffer = io.BytesIO()
         # Tamanho da página padronizado para 100x100 mm
         c = canvas.Canvas(buffer, pagesize=(100 * mm, 100 * mm))
@@ -73,6 +98,9 @@ def index():
             expedidor_text = "<b>EXPEDIDOR:</b> NEW POST LOGISTICA ENDEREÇO: R UBALDO FAGGEANI, 355,0 - JARDIM RESIDENCIAL LAS PALMAS MUNICÍPIO: PORTO FERREIRA - SP CEP: 13660-000 CNPJ/CPF: 28.678.104/0001-79 IE: 555074223110 UF: SP PAÍS: BRASIL"
             recebedor_text = f"<b>RECEBEDOR:</b> {dados_recebedor['nome_recebedor']} CNPJ {dados_recebedor['cnpj_recebedor']} ENDEREÇO: {dados_recebedor['endereco_recebedor']}, {dados_recebedor['cidade_recebedor']} - {dados_recebedor['uf_recebedor']} CEP: {dados_recebedor['cep_recebedor']}"
 
+            # Nota: Substituí '&' do texto se houver, pois ReportLab quebra com e-comercial em Paragraph
+            recebedor_text = recebedor_text.replace('&', '&amp;')
+
             p_expedidor = Paragraph(expedidor_text, style_normal)
             p_expedidor.wrapOn(c, largura_maxima, 40 * mm)
             p_expedidor.drawOn(c, margem_h, 28 * mm)
@@ -88,7 +116,7 @@ def index():
         return send_file(buffer, as_attachment=True, download_name=f'etiquetas_{sigla}_100x100.pdf', mimetype='application/pdf')
 
     return render_template('index.html', destinos=destinos_dict.keys())
-
+    
 # --- ROTAS DE ADMINISTRAÇÃO ---
 @app.route('/admin')
 def admin():
