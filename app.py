@@ -95,7 +95,7 @@ def index():
             c.drawString(margem_h, 68 * mm, "OVERPACK")
             c.drawString(margem_h, 57 * mm, "USED")
 
-            expedidor_text = "<b>EXPEDIDOR:</b> NEW POST LOGISTICA ENDEREÇO: R UBALDO FAGGEANI, 355,0 - JARDIM RESIDENCIAL LAS PALMAS MUNICÍPIO: PORTO FERREIRA - SP CEP: 13660-000 CNPJ/CPF: 28.678.104/0001-79 IE: 555074223110 UF: SP PAÍS: BRASIL"
+            expedidor_text = "<b>EXPEDIDOR:</b> NEW POST LOGISTICA ENDEREÇO: RUA DOIS, 390 - GOIABEIRAS MUNICÍPIO: LAGOA SANTA/MG CEP: 33240-254 CNPJ/CPF: 28.678.104/0002-50 IE: 43278750071 UF: MG PAÍS: BRASIL"
             recebedor_text = f"<b>RECEBEDOR:</b> {dados_recebedor['nome_recebedor']} CNPJ {dados_recebedor['cnpj_recebedor']} ENDEREÇO: {dados_recebedor['endereco_recebedor']}, {dados_recebedor['cidade_recebedor']} - {dados_recebedor['uf_recebedor']} CEP: {dados_recebedor['cep_recebedor']}"
 
             # Nota: Substituí '&' do texto se houver, pois ReportLab quebra com e-comercial em Paragraph
