@@ -12,7 +12,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
 
 app = Flask(__name__)
-CSV_PATH = 'destinos.csv'
+# --- CONFIGURAÇÃO DA PLANILHA ---
+SHEET_ID = 'COLE_O_SEU_ID_AQUI' # <-- Coloque o ID da sua planilha aqui
+CSV_URL = f"https://docs.google.com/spreadsheets/d/1HZlgL6pQ9LrjycWqm6xIffcPdNQMiOqLmCE5dAk0VSE/export?format=csv"
 
 # --- CONFIGURAÇÕES DE FONTE ---
 try:
@@ -23,9 +25,15 @@ except Exception as e:
 
 # --- FUNÇÕES DE MANIPULAÇÃO DE DADOS ---
 def carregar_dataframe():
-    if not os.path.exists(CSV_PATH):
+    try:
+        # O Pandas agora lê os dados em tempo real direto da planilha!
+        return pd.read_csv(CSV_URL, encoding='utf-8')
+    except Exception as e:
+        print(f"Erro ao ler a planilha: {e}")
         colunas = ['sigla', 'nome_recebedor', 'cnpj_recebedor', 'endereco_recebedor', 'cidade_recebedor', 'uf_recebedor', 'cep_recebedor', 'pais_recebedor']
         return pd.DataFrame(columns=colunas)
+
+# A função salvar_dataframe() foi removida daqui
     
     # CORREÇÃO 1: Adicionado encoding='utf-8-sig' para ignorar o BOM invisível do Excel/Windows
     return pd.read_csv(CSV_PATH, encoding='utf-8-sig')
